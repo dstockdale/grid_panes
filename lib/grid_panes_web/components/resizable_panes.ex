@@ -9,7 +9,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
 
   attr :id, :string, required: true
   attr :grid, Grid, required: true
-  attr :class, :string, default: "h-dvh"
+  attr :class, :string, default: "h-full"
   attr :rest, :global
 
   slot :pane, required: true do
@@ -66,8 +66,6 @@ defmodule GridPanesWeb.Components.ResizablePanes do
     pane = Map.get(assigns.panes_by_id, assigns.pane_id)
     assigns = assign(assigns, :current_pane, pane)
 
-    dbg(assigns.current_pane)
-
     case assigns.current_pane.type do
       :group -> render_pane_group(assigns)
       :pane -> render_single_pane(assigns)
@@ -107,6 +105,8 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               class="bg-gray-300 hover:bg-gray-400 cursor-col-resize flex items-center justify-center"
               data-pane-id={item.id}
               data-pane-type="divider"
+              data-pane-size-unit="px"
+              data-pane-target={item.target}
               data-pane-direction={@current_pane.direction}
               data-pane-before={item.pane_before}
               data-pane-after={item.pane_after}
@@ -161,9 +161,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               data-pane-id={"#{item.id}-divider"}
               data-pane-type="divider"
               data-pane-direction={@current_pane.direction}
-              data-pane-target={item.id}
-              data-pane-before={item.pane_before}
-              data-pane-after={item.pane_after}
+              data-pane-target={item.target}
               phx-hook="GridResize"
             >
               <div class={divider_handle_classes(@current_pane.direction)}></div>
@@ -192,6 +190,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
           divider_item = %{
             type: :divider,
             id: "#{child_id}-start-divider",
+            target: child_id,
             pane_before: nil,
             pane_after: child_id
           }
@@ -213,6 +212,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
           divider_item = %{
             type: :divider,
             id: "#{child_id}-end-divider",
+            target: child_id,
             pane_before: child_id,
             pane_after: next_child_id
           }
@@ -236,25 +236,17 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       |> assign(:merged_content, merged_content)
       |> assign(:inner_block, content)
 
-    dbg(assigns.current_pane)
-
     ~H"""
     <div
       id={@current_pane.id}
       data-pane-id={@current_pane.id}
       data-pane-type="pane"
-      data-pane-default-size={@current_pane.size_default}
+      data-pane-size-default={@current_pane.size_default}
       data-pane-size-unit={@current_pane.size_unit}
       data-pane-direction={@current_pane.direction}
       class={["relative", @merged_content.class]}
     >
-      <%= if @inner_block do %>
-        {render_slot(@inner_block)}
-      <% else %>
-        <div class="p-4 text-gray-500">
-          No content provided for pane: {@current_pane.id}
-        </div>
-      <% end %>
+      {render_slot(@inner_block)}
     </div>
     """
   end

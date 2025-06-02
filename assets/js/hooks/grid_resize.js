@@ -71,55 +71,120 @@ function distributeFrDelta(panes, idx, deltaPx, flexPx) {
   return panes.map(pane => `${pane.fr}fr`).join(' ');
 }
 
-
-function measureElement(element, direction) {
-  const rect = element.getBoundingClientRect();
-  if (direction === "row") {
-    return {size: rect.height, direction: direction};
-  } else {
-    return {size: rect.width, direction: direction};
-  }
-}
-
 class Pane {
   constructor(el, options) {
     this.el = el;
     this.id = getAttribute(options, "paneId");
     this.type = getAttribute(options, "paneType");
-    this.direction = getAttribute(options, "paneDirection");
     this.target = getAttribute(options, "paneTarget");
-    this.defaultSize = Number(getAttribute(options, "paneDefaultSize"));
+    this.sizeDefault = Number(getAttribute(options, "paneDefaultSize"));
+    this.sizeMinStart = Number(getAttribute(options, "paneMinStart"));
+    this.sizeMaxStart = Number(getAttribute(options, "paneMaxStart"));
+    this.sizeMinEnd = Number(getAttribute(options, "paneMinEnd"));
+    this.sizeMaxEnd = Number(getAttribute(options, "paneMaxEnd"));
     this.sizeUnit = getAttribute(options, "paneSizeUnit");
-    this.dimensions = measureElement(this.el, this.direction);
+    this.direction = getAttribute(options, "paneDirection", options["direction"]);
+    this.getDimensions();
+
+    if (this.type === "divider") {
+      this.el.addEventListener('mousedown', this.startDragging)
+      this.el.addEventListener('touchstart', this.startDragging)
+    }
   }
 
-  getSizePx() {
-    return this.dimensions.size;
-  }
+  getDimensions() {
+    const {
+        width,
+        height,
+        top,
+        bottom,
+        left,
+        right,
+    } = this.el.getBoundingClientRect()
 
-  getSizeFr() {
-    return this.dimensions.size / this.sizeUnit;
+    if (this.direction === 'column') {
+        this.start = top
+        this.end = bottom
+        this.size = height
+        this.clientAxis = 'clientX'
+    } else if (this.direction === 'row') {
+        this.start = left
+        this.end = right
+        this.size = width
+        this.clientAxis = 'clientY'
+    }
+  }
+}
+
+function findParentGroup(element) {
+  let parent = element.parentElement;
+  while (parent) {
+    if (parent.dataset.paneType === "group") {
+      return new Pane(parent, parent.dataset);
+    } else {
+      throw new Error("Parent is not a group");
+    }
   }
 }
 
 const GridResize = {
   mounted() {
-    console.log("GridResize mounted");
-    const direction = this.el.getAttribute("data-direction");
-    const parentElement = this.el.parentElement;
-    const container = measureElement(parentElement, direction);
+    const container = findParentGroup(this.el);
+    const siblings =  Array.from(container.el.children).filter(sibling => sibling.hasAttribute("data-pane-id"));
+    const panes = siblings.map(sibling => {
+      const options = {
+        ...sibling.dataset,
+        direction: container.direction,
+      };
 
-    // console.log("ContainerPx:", container.size);
-    // const flexPx = getFlexSpacePx(container.size, 0, 0);
-
-    // console.log("FlexPx:", flexPx);
-
-    // Get only the siblings (excluding the element itself)
-    const siblings =  Array.from(parentElement.children).filter(sibling => sibling.hasAttribute("data-pane-id"));
-    siblings.forEach(sibling => {
-      const pane = new Pane(sibling, sibling.dataset);
-      console.log("Pane:", pane);
+      return new Pane(sibling, options);
     });
+
+    const gapsPx = panes.filter(pane => pane.type === "divider").map(pane => pane.size).reduce((a, b) => a + b, 0);
+    const pxPanes = panes.filter(pane => pane.sizeUnit === "px").map(pane => pane.size).reduce((a, b) => a + b, 0);
+    const frPanes = panes.filter(pane => pane.sizeUnit === "fr").map(pane => pane.size).reduce((a, b) => a + b, 0);
+
+    const flexPx = getFlexSpacePx(container.size, pxPanes, gapsPx);
+    const ppf = pxPerFr(flexPx, frPanes);
+
+    const panesMap = new Map();
+    panes.forEach(pane => {
+      panesMap.set(pane.id, pane);
+    });
+    console.log("PanesMap:", panesMap);
+
+    const target = panesMap.get(this.el.dataset.paneTarget);
+    console.log("Target:", target);
+    const sibs = siblings.filter(pane => pane.id !== target.id);
+    
+
+    console.log("Sibs:", sibs);
+
+    console.log("Target:", this.el.dataset);
+    console.log("Divider:", this.el.id);
+
+
+    // const newSizes = distributeFrDelta(sibs, target, 0, flexPx);
+    // console.log("NewSizes:", newSizes);
+
+    console.log("Panes:", ppf);
+    console.log("GapsPx:", gapsPx);
+    console.log("PxPanes:", pxPanes);
+    console.log("FrPanes:", frPanes);
+    console.log("FlexPx:", flexPx);
+    console.log("PPF:", ppf);
+
+    // const pxPanes = panes.filter(pane => pane.sizeUnit === "px").map(pane => pane.size);
+    // const frPanes = panes.filter(pane => pane.sizeUnit === "fr").map(pane => pane.size);
+
+    // const flexPx = getFlexSpacePx(container.size, pxPanes.reduce((a, b) => a + b, 0), gaps.reduce((a, b) => a + b, 0));
+
+    // const totalFr = frPanes.reduce((a, b) => a + b, 0);
+    // const ppf = pxPerFr(flexPx, totalFr);
+
+    // const newSizes = distributeFrDelta(panes, 0, 0, flexPx);
+    // console.log("NewSizes:", newSizes);
+
   },
 };
 

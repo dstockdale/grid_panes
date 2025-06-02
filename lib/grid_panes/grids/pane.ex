@@ -50,6 +50,7 @@ defmodule GridPanes.Grids.Pane do
     ])
     |> validate_required([:id, :type])
     |> validate_id_format(:id)
+    |> validate_size_default()
     |> validate_size_consistency()
     |> validate_required_if(:direction, %{field: :type, value: :group})
     |> validate_required_if([:size_default, :size_unit], %{field: :type, value: :pane})
@@ -154,6 +155,17 @@ defmodule GridPanes.Grids.Pane do
 
       _ ->
         changeset
+    end
+  end
+
+  defp validate_size_default(changeset) do
+    size = get_field(changeset, :size)
+    size_default = get_field(changeset, :size_default)
+
+    if is_nil(size) && not is_nil(size_default) do
+      put_change(changeset, :size, size_default)
+    else
+      changeset
     end
   end
 
