@@ -67,7 +67,6 @@ function distributeFrDelta(panes, idx, deltaPx, flexPx) {
     }
   }
 
-  // ---------- 3. emit the new template string ----------
   return panes.map(pane => `${pane.fr}fr`).join(' ');
 }
 

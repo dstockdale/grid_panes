@@ -60,7 +60,7 @@ defmodule GridPanes.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:faker, "~> 0.18.0"},
-      {:tidewave, "~> 0.1.7"}
+      {:tidewave, "~> 0.1", only: :dev}
     ]
   end
 
