@@ -83,25 +83,56 @@ function distributeFrDelta(panes, idx, deltaPx, flexPx) {
   })
 }
 
-function distributeFrDeltaSimple(target, frSiblings, deltaPx) {
-  // get the pixel size of the target Pane object
-  // calculate the % change of applying the deltaPx to the target
-  // apply the % change to all the frSiblings which are an array of Pane objects
-  // return the new sizes
-
-  const targetSizePx = target.sizePx;
-  const targetSizeFr = target.size;
-
-  const deltaFr = deltaPx / targetSizePx;
-
-  const newSizes = frSiblings.map(sibling => {
-    return {
-      id: sibling.id,
-      size: sibling.size + deltaFr,
+function distributeFrDeltaSimple(target, allFrPanes, deltaPx, flexPx) {
+  // Calculate current pixel per fr ratio
+  const totalFr = allFrPanes.reduce((acc, pane) => acc + pane.size, 0);
+  const ppf = flexPx / totalFr; // pixels per fr unit
+  
+  // Convert pixel delta to fr delta
+  const deltaFr = deltaPx / ppf;
+  
+  // Find target index
+  const targetIdx = allFrPanes.findIndex(pane => pane.id === target.id);
+  
+  // Calculate new target size (with basic constraints)
+  const minFr = (target.sizeMin || 0) / ppf;
+  const maxFr = target.sizeMax === Infinity ? Infinity : (target.sizeMax || Infinity) / ppf;
+  const newTargetSize = Math.max(minFr, Math.min(maxFr, target.size + deltaFr));
+  const actualDeltaFr = newTargetSize - target.size;
+  
+  // Distribute the opposite delta among other fr panes proportionally
+  const otherPanes = allFrPanes.filter((_, idx) => idx !== targetIdx);
+  const otherTotalFr = otherPanes.reduce((acc, pane) => acc + pane.size, 0);
+  
+  if (otherTotalFr === 0) {
+    // Edge case: only one fr pane
+    return [{
+      id: target.id,
+      size: newTargetSize
+    }];
+  }
+  
+  // Create result array
+  const result = allFrPanes.map((pane, idx) => {
+    if (idx === targetIdx) {
+      return {
+        id: pane.id,
+        size: newTargetSize
+      };
+    } else {
+      // Distribute the negative delta proportionally
+      const proportion = pane.size / otherTotalFr;
+      const adjustment = -actualDeltaFr * proportion;
+      const newSize = Math.max(0.1, pane.size + adjustment); // Minimum 0.1fr
+      
+      return {
+        id: pane.id,
+        size: newSize
+      };
     }
-  })
-
-  return newSizes;
+  });
+  
+  return result;
 }
 
 class Pane {
@@ -294,28 +325,14 @@ class Divider {
 
         const idx = allFrPanes.findIndex(pane => pane.id === this.target.id);
         
-        // Adjust deltaPx based on divider position
         const adjustedDeltaPx = this.dividerPosition === "start" ? -deltaPx : deltaPx;
 
-        console.log("Original deltaPx:", deltaPx);
-        console.log("Adjusted deltaPx:", adjustedDeltaPx);
-        console.log("Divider position:", this.dividerPosition);
-
-        const newSizes = distributeFrDelta(allFrPanes, idx, adjustedDeltaPx, flexPx);
+        const newSizes = distributeFrDeltaSimple(this.target, frSiblings, adjustedDeltaPx, flexPx);
         
         newSizes.forEach((pane) => {
           root.style.setProperty(`--${pane.id}-size`, `${pane.size}fr`);
         });
         
-      } else {
-        // Target is fr but no fr siblings - treat as simple resize
-        const totalFr = this.target.size; // Use size directly since it contains fr value
-        const flexPx = getFlexSpacePx(this.container.sizePx, 0, 0); // Simplified
-        const ppf = pxPerFr(flexPx, totalFr);
-        const deltaFr = deltaPx / ppf;
-        const newFr = Math.max(0.1, totalFr + deltaFr); // Minimum 0.1fr
-        
-        root.style.setProperty(`--${this.target.id}-size`, `${newFr}fr`);
       }
     }
   }
@@ -338,8 +355,6 @@ class Divider {
   
   reset() {
     const root = document.documentElement;
-
-    console.log("Reset", this.target);
     
     // Reset target to default size
     const defaultValue = this.target.sizeUnit === 'px' 
@@ -348,7 +363,6 @@ class Divider {
     
     root.style.setProperty(`--${this.target.id}-size`, defaultValue);
     
-    // Reset siblings to their defaults if they exist
     this.siblings.forEach(sibling => {
       if (sibling.sizeDefault && sibling.sizeUnit) {
         const siblingDefault = sibling.sizeUnit === 'px'
@@ -361,7 +375,6 @@ class Divider {
   }
   
   destroy() {
-    // Clean up event listeners
     this.element.removeEventListener('mousedown', this.startDragging);
     this.element.removeEventListener('touchstart', this.startDragging);
     this.element.removeEventListener('dblclick', this.reset);
@@ -386,7 +399,6 @@ const GridResize = {
 
     const target = panes.find(pane => pane.id === this.el.dataset.paneTarget);
     
-    // Create the divider tracker
     this.divider = new Divider(this.el, target, panes, container);
   },
   
