@@ -83,6 +83,27 @@ function distributeFrDelta(panes, idx, deltaPx, flexPx) {
   })
 }
 
+function distributeFrDeltaSimple(target, frSiblings, deltaPx) {
+  // get the pixel size of the target Pane object
+  // calculate the % change of applying the deltaPx to the target
+  // apply the % change to all the frSiblings which are an array of Pane objects
+  // return the new sizes
+
+  const targetSizePx = target.sizePx;
+  const targetSizeFr = target.size;
+
+  const deltaFr = deltaPx / targetSizePx;
+
+  const newSizes = frSiblings.map(sibling => {
+    return {
+      id: sibling.id,
+      size: sibling.size + deltaFr,
+    }
+  })
+
+  return newSizes;
+}
+
 class Pane {
   constructor(el, options) {
     this.el = el;
@@ -256,41 +277,33 @@ class Divider {
     const root = document.documentElement;
     
     if (this.target.sizeUnit === 'px') {
-      const newSize = this.resize(deltaPx); // Now includes clamping
-
-      console.log("NewSize:", newSize);
-      
+      const newSize = this.resize(deltaPx);
       root.style.setProperty(`--${this.target.id}-size`, `${newSize}px`);
       
     } else if (this.target.sizeUnit === 'fr') {
-      // Check if we have fr siblings that need distribution
       const frSiblings = this.siblings.filter(sibling => sibling.sizeUnit === 'fr');
       
       if (frSiblings.length > 0) {      
-        // Calculate flex space
-        const gapsPx = this.siblings.filter(pane => pane.type === "divider")
-          .map(pane => pane.sizePx).reduce((a, b) => a + b, 0); // Use sizePx for dividers
-        const pxPanes = this.siblings.filter(pane => pane.sizeUnit === "px")
-          .map(pane => pane.sizePx).reduce((a, b) => a + b, 0); // Use sizePx for px panes
-        const flexPx = getFlexSpacePx(this.container.sizePx, pxPanes, gapsPx); // Use sizePx for container
-
-        const idx = frSiblings.findIndex(pane => pane.id == this.target.id);
-
-        console.log("Idx:", idx);
-
-        // Use the refactored distributeFrDelta function
-        const newSizes = distributeFrDelta(frSiblings, idx, deltaPx, flexPx);
-
-        console.log("frSiblings:", frSiblings);
-        console.log("idx:", idx);
-        console.log("DeltaPx:", deltaPx);
-        console.log("FlexPx:", flexPx);
-        console.log("newSizes:", newSizes);
+        const allFrPanes = [this.target, ...frSiblings.filter(pane => pane.id !== this.target.id)];
         
-        // Apply the new fr values
+        const gapsPx = this.siblings.filter(pane => pane.type === "divider")
+          .map(pane => pane.sizePx).reduce((a, b) => a + b, 0);
+        const pxPanes = this.siblings.filter(pane => pane.sizeUnit === "px")
+          .map(pane => pane.sizePx).reduce((a, b) => a + b, 0);
+        const flexPx = getFlexSpacePx(this.container.sizePx, pxPanes, gapsPx);
+
+        const idx = allFrPanes.findIndex(pane => pane.id === this.target.id);
+        
+        // Adjust deltaPx based on divider position
+        const adjustedDeltaPx = this.dividerPosition === "start" ? -deltaPx : deltaPx;
+
+        console.log("Original deltaPx:", deltaPx);
+        console.log("Adjusted deltaPx:", adjustedDeltaPx);
+        console.log("Divider position:", this.dividerPosition);
+
+        const newSizes = distributeFrDelta(allFrPanes, idx, adjustedDeltaPx, flexPx);
+        
         newSizes.forEach((pane) => {
-          console.log("PaneId:", pane.id);
-          console.log("FrValue:", pane.size);
           root.style.setProperty(`--${pane.id}-size`, `${pane.size}fr`);
         });
         
