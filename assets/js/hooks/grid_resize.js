@@ -67,6 +67,8 @@ function distributeFrDelta(panes, idx, deltaPx, flexPx) {
     }
   }
 
+  console.log("Panes:", panes);
+
   return panes.map(pane => `${pane.fr}fr`).join(' ');
 }
 
@@ -76,7 +78,7 @@ class Pane {
     this.id = getAttribute(options, "paneId");
     this.type = getAttribute(options, "paneType");
     this.target = getAttribute(options, "paneTarget");
-    this.sizeDefault = Number(getAttribute(options, "paneDefaultSize"));
+    this.sizeDefault = Number(getAttribute(options, "paneSizeDefault"));
     this.sizeMinStart = Number(getAttribute(options, "paneMinStart"));
     this.sizeMaxStart = Number(getAttribute(options, "paneMaxStart"));
     this.sizeMinEnd = Number(getAttribute(options, "paneMinEnd"));
@@ -126,65 +128,238 @@ function findParentGroup(element) {
   }
 }
 
+class Divider {
+  constructor(element, target, siblings, container) {
+    this.element = element;
+    this.target = target;
+    this.siblings = siblings;
+    this.container = container;
+    
+    this.isDragging = false;
+    this.initialState = null;
+    
+    // Bind methods
+    this.startDragging = this.startDragging.bind(this);
+    this.onDrag = this.onDrag.bind(this);
+    this.onDragEnd = this.onDragEnd.bind(this);
+    this.reset = this.reset.bind(this);
+    
+    // Set up event listeners
+    this.element.addEventListener('mousedown', this.startDragging);
+    this.element.addEventListener('touchstart', this.startDragging);
+    this.element.addEventListener('dblclick', this.reset);
+  }
+  
+  captureInitialState() {
+    // Refresh dimensions for all panes
+    this.target.getDimensions();
+    this.siblings.forEach(sibling => sibling.getDimensions());
+    this.container.getDimensions();
+    
+    return {
+      target: {
+        size: this.target.size,
+        position: this.target.start,
+      },
+      siblings: this.siblings.map(sibling => ({
+        id: sibling.id,
+        size: sibling.size,
+        position: sibling.start,
+        fr: sibling.sizeUnit === 'fr' ? this.getCurrentFrValue(sibling) : null,
+      })),
+      container: {
+        size: this.container.size,
+      }
+    };
+  }
+  
+  getCurrentFrValue(pane) {
+    // Get current fr value from CSS custom property
+    const root = document.documentElement;
+    const value = getComputedStyle(root).getPropertyValue(`--${pane.id}`);
+    return parseFloat(value.replace('fr', '')) || pane.sizeDefault;
+  }
+  
+  startDragging(event) {
+    event.preventDefault();
+
+    console.log("StartDragging");
+    
+    if (this.isDragging) return;
+    
+    this.isDragging = true;
+    this.initialState = this.captureInitialState();
+    this.startPosition = this.target.direction === 'column' ? event.clientY : event.clientX;
+    
+    // Add global event listeners
+    document.addEventListener('mousemove', this.onDrag);
+    document.addEventListener('mouseup', this.onDragEnd);
+    document.addEventListener('touchmove', this.onDrag);
+    document.addEventListener('touchend', this.onDragEnd);
+    
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
+  }
+  
+  onDrag(event) {
+    if (!this.isDragging) return;
+    
+    event.preventDefault();
+    
+    const currentPosition = this.target.direction === 'column' ? event.clientY : event.clientX;
+    const deltaPx = currentPosition - this.startPosition;
+    
+    this.applyResize(deltaPx);
+  }
+  
+  applyResize(deltaPx) {
+    const root = document.documentElement;
+    
+    if (this.target.sizeUnit === 'px') {
+      // Simple pixel-based resize
+      const newSize = Math.max(
+        this.target.sizeMinStart || 0,
+        Math.min(
+          this.target.sizeMaxStart || Infinity,
+          this.initialState.target.size + deltaPx
+        )
+      );
+
+      console.log("NewSize:", newSize);
+      
+      root.style.setProperty(`--${this.target.id}-size`, `${newSize}px`);
+      
+    } else if (this.target.sizeUnit === 'fr') {
+      // Check if we have fr siblings that need distribution
+      const frSiblings = this.siblings.filter(sibling => sibling.sizeUnit === 'fr');
+      
+      if (frSiblings.length > 0) {
+        // Use distributeFrDelta for fr-based resizing
+        const allFrPanes = [this.target, ...frSiblings];
+        
+        // Calculate flex space
+        const gapsPx = this.siblings.filter(pane => pane.type === "divider")
+          .map(pane => pane.size).reduce((a, b) => a + b, 0);
+        const pxPanes = this.siblings.filter(pane => pane.sizeUnit === "px")
+          .map(pane => pane.size).reduce((a, b) => a + b, 0);
+        const flexPx = getFlexSpacePx(this.container.size, pxPanes, gapsPx);
+        
+        // Create a working copy with current fr values
+        const workingPanes = allFrPanes.map(pane => ({
+          ...pane,
+          fr: this.getCurrentFrValue(pane),
+          min: pane.sizeMinStart || 0,
+          max: pane.sizeMaxStart || Infinity,
+        }));
+        
+        const targetIndex = workingPanes.findIndex(pane => pane.id === this.target.id);
+        const newTemplate = distributeFrDelta(workingPanes, targetIndex, deltaPx, flexPx);
+        
+        // Apply the new fr values
+        const frValues = newTemplate.split(' ');
+        workingPanes.forEach((pane, index) => {
+          root.style.setProperty(`--${pane.id}-size`, frValues[index]);
+        });
+        
+      } else {
+        // Target is fr but no fr siblings - treat as simple resize
+        const totalFr = this.getCurrentFrValue(this.target);
+        const flexPx = getFlexSpacePx(this.container.size, 0, 0); // Simplified
+        const ppf = pxPerFr(flexPx, totalFr);
+        const deltaFr = deltaPx / ppf;
+        const newFr = Math.max(0.1, totalFr + deltaFr); // Minimum 0.1fr
+        
+        root.style.setProperty(`--${this.target.id}-size`, `${newFr}fr`);
+      }
+    }
+  }
+  
+  onDragEnd() {
+    if (!this.isDragging) return;
+    
+    this.isDragging = false;
+    this.initialState = null;
+    
+    // Remove global event listeners
+    document.removeEventListener('mousemove', this.onDrag);
+    document.removeEventListener('mouseup', this.onDragEnd);
+    document.removeEventListener('touchmove', this.onDrag);
+    document.removeEventListener('touchend', this.onDragEnd);
+    
+    // Restore text selection
+    document.body.style.userSelect = '';
+  }
+  
+  reset() {
+    const root = document.documentElement;
+
+    console.log("Reset", this.target);
+    
+    // Reset target to default size
+    const defaultValue = this.target.sizeUnit === 'px' 
+      ? `${this.target.sizeDefault}px`
+      : `${this.target.sizeDefault}fr`;
+    
+    root.style.setProperty(`--${this.target.id}-size`, defaultValue);
+    
+    // Reset siblings to their defaults if they exist
+    this.siblings.forEach(sibling => {
+      if (sibling.sizeDefault && sibling.sizeUnit) {
+        const siblingDefault = sibling.sizeUnit === 'px'
+          ? `${sibling.sizeDefault}px`
+          : `${sibling.sizeDefault}fr`;
+        
+        root.style.setProperty(`--${sibling.id}-size`, siblingDefault);
+      }
+    });
+  }
+  
+  destroy() {
+    // Clean up event listeners
+    this.element.removeEventListener('mousedown', this.startDragging);
+    this.element.removeEventListener('touchstart', this.startDragging);
+    this.element.removeEventListener('dblclick', this.reset);
+    
+    if (this.isDragging) {
+      this.onDragEnd();
+    }
+  }
+}
+
 const GridResize = {
   mounted() {
     const container = findParentGroup(this.el);
-    const siblings =  Array.from(container.el.children).filter(sibling => sibling.hasAttribute("data-pane-id"));
+    const siblings = Array.from(container.el.children).filter(sibling => sibling.hasAttribute("data-pane-id"));
     const panes = siblings.map(sibling => {
       const options = {
         ...sibling.dataset,
         direction: container.direction,
       };
 
+      console.log(options);
       return new Pane(sibling, options);
     });
-
-    const gapsPx = panes.filter(pane => pane.type === "divider").map(pane => pane.size).reduce((a, b) => a + b, 0);
-    const pxPanes = panes.filter(pane => pane.sizeUnit === "px").map(pane => pane.size).reduce((a, b) => a + b, 0);
-    const frPanes = panes.filter(pane => pane.sizeUnit === "fr").map(pane => pane.size).reduce((a, b) => a + b, 0);
-
-    const flexPx = getFlexSpacePx(container.size, pxPanes, gapsPx);
-    const ppf = pxPerFr(flexPx, frPanes);
 
     const panesMap = new Map();
     panes.forEach(pane => {
       panesMap.set(pane.id, pane);
     });
-    console.log("PanesMap:", panesMap);
 
     const target = panesMap.get(this.el.dataset.paneTarget);
+    const siblingPanes = panes.filter(pane => pane.id !== target.id);
+
     console.log("Target:", target);
-    const sibs = siblings.filter(pane => pane.id !== target.id);
     
-
-    console.log("Sibs:", sibs);
-
-    console.log("Target:", this.el.dataset);
-    console.log("Divider:", this.el.id);
-
-
-    // const newSizes = distributeFrDelta(sibs, target, 0, flexPx);
-    // console.log("NewSizes:", newSizes);
-
-    console.log("Panes:", ppf);
-    console.log("GapsPx:", gapsPx);
-    console.log("PxPanes:", pxPanes);
-    console.log("FrPanes:", frPanes);
-    console.log("FlexPx:", flexPx);
-    console.log("PPF:", ppf);
-
-    // const pxPanes = panes.filter(pane => pane.sizeUnit === "px").map(pane => pane.size);
-    // const frPanes = panes.filter(pane => pane.sizeUnit === "fr").map(pane => pane.size);
-
-    // const flexPx = getFlexSpacePx(container.size, pxPanes.reduce((a, b) => a + b, 0), gaps.reduce((a, b) => a + b, 0));
-
-    // const totalFr = frPanes.reduce((a, b) => a + b, 0);
-    // const ppf = pxPerFr(flexPx, totalFr);
-
-    // const newSizes = distributeFrDelta(panes, 0, 0, flexPx);
-    // console.log("NewSizes:", newSizes);
-
+    // Create the divider tracker
+    this.divider = new Divider(this.el, target, siblingPanes, container);
   },
+  
+  destroyed() {
+    // Clean up when the hook is destroyed
+    if (this.divider) {
+      this.divider.destroy();
+    }
+  }
 };
 
 export default GridResize;

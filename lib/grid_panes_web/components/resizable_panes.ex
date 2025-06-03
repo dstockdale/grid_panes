@@ -294,7 +294,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       end)
 
     ~H"""
-    <style :if={!@preview} type="text/css">
+    <style :if={!@preview} type="text/css" id="grid-styles" phx-update="ignore">
       <%= {:safe, @css} %>
     </style>
 
