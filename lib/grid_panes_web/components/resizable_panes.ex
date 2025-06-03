@@ -162,6 +162,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               data-pane-type="divider"
               data-pane-direction={@current_pane.direction}
               data-pane-target={item.target}
+              data-pane-divider-position={item.divider_position}
               phx-hook="GridResize"
             >
               <div class={divider_handle_classes(@current_pane.direction)}></div>
@@ -192,7 +193,8 @@ defmodule GridPanesWeb.Components.ResizablePanes do
             id: "#{child_id}-start-divider",
             target: child_id,
             pane_before: nil,
-            pane_after: child_id
+            pane_after: child_id,
+            divider_position: pane.divider_position
           }
 
           items ++ [divider_item]
@@ -214,7 +216,8 @@ defmodule GridPanesWeb.Components.ResizablePanes do
             id: "#{child_id}-end-divider",
             target: child_id,
             pane_before: child_id,
-            pane_after: next_child_id
+            pane_after: next_child_id,
+            divider_position: pane.divider_position
           }
 
           items ++ [divider_item]
@@ -244,6 +247,8 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       data-pane-size-default={@current_pane.size_default}
       data-pane-size-unit={@current_pane.size_unit}
       data-pane-direction={@current_pane.direction}
+      data-pane-size-min={@current_pane.size_min}
+      data-pane-size-max={@current_pane.size_max}
       class={["relative", @merged_content.class]}
     >
       {render_slot(@inner_block)}
