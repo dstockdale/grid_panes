@@ -249,6 +249,8 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       data-pane-direction={@current_pane.direction}
       data-pane-size-min={@current_pane.size_min}
       data-pane-size-max={@current_pane.size_max}
+      data-pane-collapse-at={@current_pane.collapse_at}
+      data-pane-collapse-to={@current_pane.collapse_to}
       class={["relative", @merged_content.class]}
     >
       {render_slot(@inner_block)}
