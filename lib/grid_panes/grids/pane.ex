@@ -223,7 +223,11 @@ defmodule GridPanes.Grids.Pane do
   def divider_size_string(%__MODULE__{divider_size: nil}), do: nil
 
   def divider_size_string(%__MODULE__{divider_size: size}) do
-    "#{Decimal.to_string(size)}px"
+    case size do
+      nil -> nil
+      %Decimal{} -> "#{Decimal.to_string(size)}px"
+      size -> "#{size}px"
+    end
   end
 
   # Helper to create a new decimal value

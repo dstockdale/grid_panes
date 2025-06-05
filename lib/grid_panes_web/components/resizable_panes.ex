@@ -87,6 +87,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       data-pane-id={@current_pane.id}
       data-pane-type="group"
       data-pane-direction={@current_pane.direction}
+      data-pane-root-id={"#{@current_pane.id}-grid-root"}
       class="relative h-dvh"
     >
       <%= for item <- @grid_items do %>
@@ -253,7 +254,9 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       data-pane-collapse-to={@current_pane.collapse_to}
       class={["relative", @merged_content.class]}
     >
-      {render_slot(@inner_block)}
+      <%= if has_slot?(@inner_block) do %>
+        {render_slot(@inner_block)}
+      <% end %>
     </div>
     """
   end
@@ -399,4 +402,6 @@ defmodule GridPanesWeb.Components.ResizablePanes do
     end)
     |> Enum.join(" ")
   end
+
+  defp has_slot?(slot), do: slot && slot != []
 end

@@ -67,6 +67,16 @@ defmodule GridPanesWeb.TestLive do
           divider_size: Decimal.new("8")
         },
         %Pane{
+          id: "content-middle",
+          type: :pane,
+          size_unit: :fr,
+          size_default: Decimal.new("2"),
+          parent_id: "content",
+          children: [],
+          order: 0,
+          divider_position: :end
+        },
+        %Pane{
           id: "content-right",
           type: :pane,
           size_unit: :fr,
@@ -124,6 +134,8 @@ defmodule GridPanesWeb.TestLive do
             <.lorem lang="th" />
           </div>
         </:pane>
+
+        <:pane id="content-middle" class="bg-orange-500 overflow-y-auto"></:pane>
 
         <:pane id="content-right" class="bg-purple-500 h-full overflow-y-auto">
           <div class="p-6 h-full">

@@ -120,7 +120,7 @@ class GridResizeUtils {
         // Distribute the negative delta proportionally
         const proportion = pane.size / otherTotalFr;
         const adjustment = -actualDeltaFr * proportion;
-        const newSize = Math.max(0.1, pane.size + adjustment); // Minimum 0.1fr
+        const newSize = Math.max(0.001, pane.size + adjustment); // Minimum 0.1fr
 
         return {
           id: pane.id,
@@ -222,6 +222,10 @@ class Pane {
     const frValue = parseFloat(value.replace("fr", ""));
     return isNaN(frValue) ? this.sizeDefault : frValue;
   }
+
+  public isCollapsed(): boolean {
+    return this.size <= this.collapseAt;
+  }
 }
 
 // Helper function to find parent group
@@ -322,21 +326,61 @@ class Divider {
     };
   }
 
+  private checkCollapseCondition(newSize: number, currentSize: number): number {
+    // Skip if collapsing is disabled
+    if (this.target.collapseAt === 0) {
+      return newSize;
+    }
+
+    const isCurrentlyCollapsed = currentSize <= this.target.collapseAt;
+
+    console.log(
+      "checking collapse condition",
+      newSize,
+      this.target.collapseTo,
+      this.target.collapseAt,
+      currentSize,
+      isCurrentlyCollapsed
+    );
+
+    // If currently collapsed and trying to expand, snap to collapseAt
+    if (isCurrentlyCollapsed && newSize > this.target.collapseTo) {
+      console.log("expanding past collapse threshold");
+      return this.target.sizeDefault;
+    }
+
+    // If new size would be below collapse threshold, collapse it
+    if (newSize < this.target.collapseAt) {
+      return this.target.collapseTo;
+    }
+
+    return newSize;
+  }
+
   private calculateNewSize(deltaPx: number): number {
     if (!this.initialState) return this.target.size;
 
-    // For column direction: end divider inverts delta, start divider doesn't
-    // For row direction: start divider inverts delta, end divider doesn't
     const shouldInvertDelta =
       (this.target.direction === "column" && this.dividerPosition === "end") ||
       (this.target.direction === "row" && this.dividerPosition === "start");
 
     const baseDelta = shouldInvertDelta ? -deltaPx : deltaPx;
-    const newSize = this.initialState.target.size + baseDelta;
+    const rawNewSize = this.initialState.target.size + baseDelta;
+
+    // Apply basic constraints first
     const minSize = this.target.sizeMin || 0;
     const maxSize = this.target.sizeMax || Infinity;
+    const clampedSize = GridResizeUtils.clamp(rawNewSize, minSize, maxSize);
 
-    return GridResizeUtils.clamp(newSize, minSize, maxSize);
+    // Apply collapse logic only for px units
+    if (this.target.sizeUnit === "px") {
+      return this.checkCollapseCondition(
+        clampedSize,
+        this.initialState.target.size
+      );
+    }
+
+    return clampedSize;
   }
 
   private startDragging(event: MouseEvent | TouchEvent): void {
@@ -403,12 +447,28 @@ class Divider {
           pxPanes,
           gapsPx
         );
+
         const adjustedDeltaPx =
           this.dividerPosition === "start" ? -deltaPx : deltaPx;
 
+        // Simple pane data for fr distribution (no collapse info needed)
+        const targetData = {
+          id: this.target.id,
+          size: this.target.size,
+          sizeMin: this.target.sizeMin,
+          sizeMax: this.target.sizeMax,
+        };
+
+        const frSiblingsData = frSiblings.map((sibling) => ({
+          id: sibling.id,
+          size: sibling.size,
+          sizeMin: sibling.sizeMin,
+          sizeMax: sibling.sizeMax,
+        }));
+
         const newSizes = GridResizeUtils.distributeFrDelta(
-          this.target,
-          frSiblings,
+          targetData,
+          frSiblingsData,
           adjustedDeltaPx,
           flexPx
         );
@@ -486,6 +546,7 @@ const GridResize = {
         (sibling): sibling is HTMLElement =>
           sibling instanceof HTMLElement && sibling.hasAttribute("data-pane-id")
       );
+      const root = this.el.closest("[data-pane-root-id]") as HTMLElement;
 
       const panes = siblingElements.map((sibling) => {
         const options: PaneOptions = {
@@ -502,6 +563,8 @@ const GridResize = {
       if (!target) {
         throw new Error(`Target pane not found: ${this.el.dataset.paneTarget}`);
       }
+
+      console.log("root", root.dataset.paneRootId);
 
       this.divider = new Divider(this.el, target, panes, container);
     } catch (error) {
