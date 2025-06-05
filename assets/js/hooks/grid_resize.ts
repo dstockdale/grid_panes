@@ -1,11 +1,4 @@
 // Types and Interfaces
-interface PaneData {
-  id: string;
-  size: number;
-  sizeMin?: number;
-  sizeMax?: number;
-}
-
 interface PaneOptions {
   paneId: string;
   paneType: string;
@@ -63,71 +56,6 @@ class GridResizeUtils {
 
   static clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
-  }
-
-  /**
-   * Distributes fr delta among panes proportionally
-   */
-  static distributeFrDelta(
-    target: PaneData,
-    allFrPanes: PaneData[],
-    deltaPx: number,
-    flexPx: number
-  ): PaneData[] {
-    const totalFr = allFrPanes.reduce((acc, pane) => acc + pane.size, 0);
-    const ppf = flexPx / totalFr; // pixels per fr unit
-
-    // Convert pixel delta to fr delta
-    const deltaFr = deltaPx / ppf;
-
-    // Find target index
-    const targetIdx = allFrPanes.findIndex((pane) => pane.id === target.id);
-
-    // Calculate new target size (with basic constraints)
-    const minFr = (target.sizeMin || 0) / ppf;
-    const maxFr =
-      target.sizeMax === Infinity
-        ? Infinity
-        : (target.sizeMax || Infinity) / ppf;
-    const newTargetSize = Math.max(
-      minFr,
-      Math.min(maxFr, target.size + deltaFr)
-    );
-    const actualDeltaFr = newTargetSize - target.size;
-
-    // Distribute the opposite delta among other fr panes proportionally
-    const otherPanes = allFrPanes.filter((_, idx) => idx !== targetIdx);
-    const otherTotalFr = otherPanes.reduce((acc, pane) => acc + pane.size, 0);
-
-    if (otherTotalFr === 0) {
-      // Edge case: only one fr pane
-      return [
-        {
-          id: target.id,
-          size: newTargetSize,
-        },
-      ];
-    }
-
-    // Create result array
-    return allFrPanes.map((pane, idx) => {
-      if (idx === targetIdx) {
-        return {
-          id: pane.id,
-          size: newTargetSize,
-        };
-      } else {
-        // Distribute the negative delta proportionally
-        const proportion = pane.size / otherTotalFr;
-        const adjustment = -actualDeltaFr * proportion;
-        const newSize = Math.max(0.001, pane.size + adjustment); // Minimum 0.1fr
-
-        return {
-          id: pane.id,
-          size: newSize,
-        };
-      }
-    });
   }
 }
 
@@ -429,11 +357,15 @@ class Divider {
       const newSize = this.calculateNewSize(deltaPx);
       root.style.setProperty(`--${this.target.id}-size`, `${newSize}px`);
     } else if (this.target.sizeUnit === "fr") {
+      // Two-pane resizing: only affect the target and one adjacent pane
       const frSiblings = this.siblings.filter(
         (sibling) => sibling.sizeUnit === "fr"
       );
 
       if (frSiblings.length > 0) {
+        const adjacentPane = this.findAdjacentPane(frSiblings);
+        if (!adjacentPane) return; // No valid adjacent pane found
+
         const gapsPx = this.siblings
           .filter((pane) => pane.type === "divider")
           .reduce((sum, pane) => sum + pane.sizePx, 0);
@@ -448,35 +380,109 @@ class Divider {
           gapsPx
         );
 
-        const adjustedDeltaPx =
-          this.dividerPosition === "start" ? -deltaPx : deltaPx;
+        const totalFr = frSiblings.reduce((acc, pane) => acc + pane.size, 0);
+        const ppf = flexPx / totalFr; // pixels per fr unit
+        const deltaFr = deltaPx / ppf; // Convert pixel delta to fr delta
 
-        // Simple pane data for fr distribution (no collapse info needed)
-        const targetData = {
-          id: this.target.id,
-          size: this.target.size,
-          sizeMin: this.target.sizeMin,
-          sizeMax: this.target.sizeMax,
-        };
+        // Determine which pane grows and which shrinks based on divider position
+        let targetDelta: number;
+        let adjacentDelta: number;
 
-        const frSiblingsData = frSiblings.map((sibling) => ({
-          id: sibling.id,
-          size: sibling.size,
-          sizeMin: sibling.sizeMin,
-          sizeMax: sibling.sizeMax,
-        }));
+        if (this.dividerPosition === "start") {
+          // Divider is at start of target: dragging right/down grows target, shrinks adjacent
+          targetDelta = -deltaFr;
+          adjacentDelta = deltaFr;
+        } else {
+          // Divider is at end of target: dragging right/down shrinks target, grows adjacent
+          targetDelta = deltaFr;
+          adjacentDelta = -deltaFr;
+        }
 
-        const newSizes = GridResizeUtils.distributeFrDelta(
-          targetData,
-          frSiblingsData,
-          adjustedDeltaPx,
-          flexPx
+        // Apply constraints
+        const newTargetSize = Math.max(
+          (this.target.sizeMin || 0) / ppf,
+          Math.min(
+            this.target.sizeMax === Infinity
+              ? Infinity
+              : (this.target.sizeMax || Infinity) / ppf,
+            this.target.size + targetDelta
+          )
         );
 
-        newSizes.forEach((pane) => {
-          root.style.setProperty(`--${pane.id}-size`, `${pane.size}fr`);
-        });
+        const newAdjacentSize = Math.max(
+          (adjacentPane.sizeMin || 0) / ppf,
+          Math.min(
+            adjacentPane.sizeMax === Infinity
+              ? Infinity
+              : (adjacentPane.sizeMax || Infinity) / ppf,
+            adjacentPane.size + adjacentDelta
+          )
+        );
+
+        // Only apply changes if both panes can accommodate the change
+        const actualTargetDelta = newTargetSize - this.target.size;
+        const actualAdjacentDelta = newAdjacentSize - adjacentPane.size;
+
+        // Ensure zero-sum: if one pane hits a constraint, limit the other's change
+        if (Math.abs(actualTargetDelta + actualAdjacentDelta) > 0.001) {
+          // One pane hit constraint, so adjust the deltas to maintain zero-sum
+          if (Math.abs(actualTargetDelta) < Math.abs(targetDelta)) {
+            // Target hit constraint, adjust adjacent
+            const constrainedAdjacentSize =
+              adjacentPane.size - actualTargetDelta;
+            root.style.setProperty(
+              `--${this.target.id}-size`,
+              `${newTargetSize}fr`
+            );
+            root.style.setProperty(
+              `--${adjacentPane.id}-size`,
+              `${constrainedAdjacentSize}fr`
+            );
+          } else {
+            // Adjacent hit constraint, adjust target
+            const constrainedTargetSize =
+              this.target.size - actualAdjacentDelta;
+            root.style.setProperty(
+              `--${this.target.id}-size`,
+              `${constrainedTargetSize}fr`
+            );
+            root.style.setProperty(
+              `--${adjacentPane.id}-size`,
+              `${newAdjacentSize}fr`
+            );
+          }
+        } else {
+          // Both panes can accommodate the change
+          root.style.setProperty(
+            `--${this.target.id}-size`,
+            `${newTargetSize}fr`
+          );
+          root.style.setProperty(
+            `--${adjacentPane.id}-size`,
+            `${newAdjacentSize}fr`
+          );
+        }
       }
+    }
+  }
+
+  /**
+   * Find the pane adjacent to the target based on divider position
+   */
+  private findAdjacentPane(frSiblings: Pane[]): Pane | null {
+    const targetIndex = frSiblings.findIndex(
+      (pane) => pane.id === this.target.id
+    );
+    if (targetIndex === -1) return null;
+
+    if (this.dividerPosition === "start") {
+      // Divider is at start of target, so adjacent pane is the previous one
+      return targetIndex > 0 ? frSiblings[targetIndex - 1] : null;
+    } else {
+      // Divider is at end of target, so adjacent pane is the next one
+      return targetIndex < frSiblings.length - 1
+        ? frSiblings[targetIndex + 1]
+        : null;
     }
   }
 

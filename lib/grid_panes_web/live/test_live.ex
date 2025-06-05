@@ -30,10 +30,47 @@ defmodule GridPanesWeb.TestLive do
           collapse_at: Decimal.new("180"),
           collapse_to: Decimal.new("60"),
           parent_id: "root",
-          children: [],
+          children: ["sidebar_group"],
           order: 0,
           divider_position: :end,
           divider_size: Decimal.new("8")
+        },
+        %Pane{
+          id: "sidebar_group",
+          type: :group,
+          direction: :row,
+          size_unit: :fr,
+          size_default: Decimal.new("1"),
+          parent_id: "sidebar",
+          children: ["sidebar_top", "sidebar_middle", "sidebar_bottom"],
+          order: 0
+        },
+        %Pane{
+          id: "sidebar_top",
+          type: :pane,
+          size_unit: :px,
+          size_default: Decimal.new("100"),
+          parent_id: "sidebar_group",
+          children: [],
+          order: 0
+        },
+        %Pane{
+          id: "sidebar_middle",
+          type: :pane,
+          size_unit: :fr,
+          size_default: Decimal.new("1"),
+          parent_id: "sidebar_group",
+          children: [],
+          order: 0
+        },
+        %Pane{
+          id: "sidebar_bottom",
+          type: :pane,
+          size_unit: :fr,
+          size_default: Decimal.new("1"),
+          parent_id: "sidebar_group",
+          children: [],
+          order: 0
         },
         %Pane{
           id: "main",
@@ -109,7 +146,21 @@ defmodule GridPanesWeb.TestLive do
     ~H"""
     <Layouts.whole_screen flash={@flash}>
       <.resizable_grid grid={@grid} id="resizable-grid">
-        <:pane id="sidebar" class="bg-yellow-500">
+        <:pane id="sidebar" class="bg-yellow-500"></:pane>
+
+        <:pane id="sidebar_top" class="bg-green-500">
+          <div class="p-4 bg-gray-100">
+            <h2 class="text-lg font-bold mb-4">Top</h2>
+          </div>
+        </:pane>
+
+        <:pane id="sidebar_group" class="bg-green-500">
+          <div class="p-4 bg-gray-100">
+            <h2 class="text-lg font-bold mb-4">Group</h2>
+          </div>
+        </:pane>
+
+        <:pane id="sidebar_middle" class="bg-green-500">
           <div class="p-4 bg-gray-100">
             <h2 class="text-lg font-bold mb-4">Navigation</h2>
             <nav>
@@ -119,6 +170,12 @@ defmodule GridPanesWeb.TestLive do
                 <li><a href="#" class="block py-2 px-3 rounded hover:bg-gray-200">Settings</a></li>
               </ul>
             </nav>
+          </div>
+        </:pane>
+
+        <:pane id="sidebar_bottom" class="bg-green-500">
+          <div class="p-4 bg-gray-100">
+            <h2 class="text-lg font-bold mb-4">Bottom</h2>
           </div>
         </:pane>
 
