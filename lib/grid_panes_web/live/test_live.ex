@@ -9,6 +9,7 @@ defmodule GridPanesWeb.TestLive do
   @impl true
   def mount(_params, _session, socket) do
     # Create or load your grid structure
+
     grid = %Grid{
       name: "Dashboard Layout",
       panes: [
@@ -20,9 +21,13 @@ defmodule GridPanesWeb.TestLive do
           parent_id: nil,
           order: 0
         },
+        # FIXED: Changed sidebar from :pane to :group and added direction
         %Pane{
           id: "sidebar",
-          type: :pane,
+          # Changed from :pane
+          type: :group,
+          # Added direction for row layout
+          direction: :row,
           size_unit: :px,
           size_default: Decimal.new("300"),
           size_min: Decimal.new("60"),
@@ -30,28 +35,20 @@ defmodule GridPanesWeb.TestLive do
           collapse_at: Decimal.new("180"),
           collapse_to: Decimal.new("60"),
           parent_id: "root",
-          children: ["sidebar_group"],
+          children: ["sidebar_top", "sidebar_middle", "sidebar_bottom"],
           order: 0,
           divider_position: :end,
           divider_size: Decimal.new("8")
-        },
-        %Pane{
-          id: "sidebar_group",
-          type: :group,
-          direction: :row,
-          size_unit: :fr,
-          size_default: Decimal.new("1"),
-          parent_id: "sidebar",
-          children: ["sidebar_top", "sidebar_middle", "sidebar_bottom"],
-          order: 0
         },
         %Pane{
           id: "sidebar_top",
           type: :pane,
           size_unit: :px,
           size_default: Decimal.new("100"),
-          parent_id: "sidebar_group",
+          parent_id: "sidebar",
           children: [],
+          divider_position: :end,
+          divider_size: Decimal.new("8"),
           order: 0
         },
         %Pane{
@@ -59,18 +56,21 @@ defmodule GridPanesWeb.TestLive do
           type: :pane,
           size_unit: :fr,
           size_default: Decimal.new("1"),
-          parent_id: "sidebar_group",
+          parent_id: "sidebar",
           children: [],
-          order: 0
+          divider_position: :end,
+          divider_size: Decimal.new("8"),
+          order: 1
         },
         %Pane{
           id: "sidebar_bottom",
           type: :pane,
           size_unit: :fr,
           size_default: Decimal.new("1"),
-          parent_id: "sidebar_group",
+          parent_id: "sidebar",
           children: [],
-          order: 0
+          # Third row
+          order: 2
         },
         %Pane{
           id: "main",
@@ -89,7 +89,8 @@ defmodule GridPanesWeb.TestLive do
           size_unit: :fr,
           size_default: Decimal.new("1"),
           parent_id: "main",
-          children: ["content-left", "content-right"],
+          # FIXED: Added content-middle to children array, fixed orders
+          children: ["content-left", "content-middle", "content-right"],
           order: 0
         },
         %Pane{
@@ -99,6 +100,7 @@ defmodule GridPanesWeb.TestLive do
           size_default: Decimal.new("1"),
           parent_id: "content",
           children: [],
+          # First column
           order: 0,
           divider_position: :end,
           divider_size: Decimal.new("8")
@@ -110,7 +112,8 @@ defmodule GridPanesWeb.TestLive do
           size_default: Decimal.new("2"),
           parent_id: "content",
           children: [],
-          order: 0,
+          # Second column
+          order: 1,
           divider_position: :end
         },
         %Pane{
@@ -120,7 +123,8 @@ defmodule GridPanesWeb.TestLive do
           size_default: Decimal.new("1"),
           parent_id: "content",
           children: [],
-          order: 0
+          # Third column
+          order: 2
         },
         %Pane{
           id: "footer",
@@ -151,12 +155,6 @@ defmodule GridPanesWeb.TestLive do
         <:pane id="sidebar_top" class="bg-green-500">
           <div class="p-4 bg-gray-100">
             <h2 class="text-lg font-bold mb-4">Top</h2>
-          </div>
-        </:pane>
-
-        <:pane id="sidebar_group" class="bg-green-500">
-          <div class="p-4 bg-gray-100">
-            <h2 class="text-lg font-bold mb-4">Group</h2>
           </div>
         </:pane>
 
