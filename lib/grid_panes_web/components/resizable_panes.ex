@@ -57,6 +57,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       panes_by_id={@panes_by_id}
       groups={@groups}
       pane_content_map={@pane_content_map}
+      parent_direction={nil}
     />
     """
   end
@@ -98,12 +99,12 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               panes_by_id={@panes_by_id}
               groups={@groups}
               pane_content_map={@pane_content_map}
-              pane_direction={@current_pane.direction}
+              parent_direction={@current_pane.direction}
             />
           <% :divider -> %>
             <div
               id={item.id}
-              class="bg-gray-300 hover:bg-gray-400 cursor-col-resize flex items-center justify-center"
+              class={divider_classes(@current_pane.direction)}
               data-pane-id={item.id}
               data-pane-type="divider"
               data-pane-size-unit="px"
@@ -113,7 +114,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               data-pane-after={item.pane_after}
               phx-hook="GridResize"
             >
-              <div class="w-1 h-8 bg-gray-500 rounded"></div>
+              <div class={divider_handle_classes(@current_pane.direction)}></div>
             </div>
         <% end %>
       <% end %>
@@ -142,7 +143,14 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       id={@current_pane.id}
       data-pane-id={@current_pane.id}
       data-pane-type="group"
-      data-pane-direction={@current_pane.direction}
+      data-pane-size-default={@current_pane.size_default}
+      data-pane-size-unit={@current_pane.size_unit}
+      data-pane-size-min={@current_pane.size_min}
+      data-pane-size-max={@current_pane.size_max}
+      data-pane-collapse-at={@current_pane.collapse_at}
+      data-pane-collapse-to={@current_pane.collapse_to}
+      data-pane-internal-direction={@current_pane.direction}
+      data-pane-resize-direction={@parent_direction}
       class={["relative", @merged_content.class]}
     >
       <%= for item <- @grid_items do %>
@@ -153,7 +161,7 @@ defmodule GridPanesWeb.Components.ResizablePanes do
               panes_by_id={@panes_by_id}
               groups={@groups}
               pane_content_map={@pane_content_map}
-              pane_direction={@current_pane.direction}
+              parent_direction={@current_pane.direction}
             />
           <% :divider -> %>
             <div
@@ -247,12 +255,12 @@ defmodule GridPanesWeb.Components.ResizablePanes do
       data-pane-type="pane"
       data-pane-size-default={@current_pane.size_default}
       data-pane-size-unit={@current_pane.size_unit}
-      data-pane-direction={@current_pane.direction}
+      data-pane-resize-direction={@parent_direction}
       data-pane-size-min={@current_pane.size_min}
       data-pane-size-max={@current_pane.size_max}
       data-pane-collapse-at={@current_pane.collapse_at}
       data-pane-collapse-to={@current_pane.collapse_to}
-      class={["relative", @merged_content.class]}
+      class={["relative outline outline-1 outline-red-500", @merged_content.class]}
     >
       <%= if has_slot?(@inner_block) do %>
         {render_slot(@inner_block)}

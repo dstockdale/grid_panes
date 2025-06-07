@@ -32,7 +32,7 @@ defmodule GridPanesWeb.TestLive do
           size_default: Decimal.new("300"),
           size_min: Decimal.new("60"),
           size_max: Decimal.new("500"),
-          collapse_at: Decimal.new("180"),
+          collapse_at: Decimal.new("120"),
           collapse_to: Decimal.new("60"),
           parent_id: "root",
           children: ["sidebar_top", "sidebar_middle", "sidebar_bottom"],
@@ -150,15 +150,15 @@ defmodule GridPanesWeb.TestLive do
     ~H"""
     <Layouts.whole_screen flash={@flash}>
       <.resizable_grid grid={@grid} id="resizable-grid">
-        <:pane id="sidebar" class="bg-yellow-500"></:pane>
+        <:pane id="sidebar" class="bg-yellow-500 overflow-hidden"></:pane>
 
-        <:pane id="sidebar_top" class="bg-green-500">
+        <:pane id="sidebar_top" class="bg-green-500 overflow-hidden">
           <div class="p-4 bg-gray-100">
             <h2 class="text-lg font-bold mb-4">Top</h2>
           </div>
         </:pane>
 
-        <:pane id="sidebar_middle" class="bg-green-500">
+        <:pane id="sidebar_middle" class="bg-green-500 overflow-hidden">
           <div class="p-4 bg-gray-100">
             <h2 class="text-lg font-bold mb-4">Navigation</h2>
             <nav>
@@ -181,7 +181,7 @@ defmodule GridPanesWeb.TestLive do
 
         <:pane id="content" class="bg-blue-500 overflow-hidden"></:pane>
 
-        <:pane id="content-left" class="bg-orange-500 overflow-y-auto">
+        <:pane id="content-left" class="bg-orange-500 overflow-x-hidden overflow-y-auto">
           <div class="p-6 h-full">
             <.lorem lang="th" />
             <.lorem lang="ru" />
@@ -190,9 +190,9 @@ defmodule GridPanesWeb.TestLive do
           </div>
         </:pane>
 
-        <:pane id="content-middle" class="bg-orange-500 overflow-y-auto"></:pane>
+        <:pane id="content-middle" class="bg-orange-500 overflow-x-hidden overflow-y-auto"></:pane>
 
-        <:pane id="content-right" class="bg-purple-500 h-full overflow-y-auto">
+        <:pane id="content-right" class="bg-purple-500 h-full overflow-x-hidden overflow-y-auto">
           <div class="p-6 h-full">
             <.lorem lang="th" />
             <.lorem lang="ru" />

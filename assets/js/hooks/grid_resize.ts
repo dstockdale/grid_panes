@@ -104,7 +104,7 @@ class Pane {
     ) as SizeUnit;
     this.direction = GridResizeUtils.getAttribute(
       options,
-      "paneDirection",
+      "paneResizeDirection",
       options.direction
     ) as Direction;
     this.collapseAt = Number(
@@ -390,12 +390,12 @@ class Divider {
 
         if (this.dividerPosition === "start") {
           // Divider is at start of target: dragging right/down grows target, shrinks adjacent
-          targetDelta = -deltaFr;
-          adjacentDelta = deltaFr;
-        } else {
-          // Divider is at end of target: dragging right/down shrinks target, grows adjacent
           targetDelta = deltaFr;
           adjacentDelta = -deltaFr;
+        } else {
+          // Divider is at end of target: dragging right/down shrinks target, grows adjacent
+          targetDelta = -deltaFr;
+          adjacentDelta = deltaFr;
         }
 
         // Apply constraints
