@@ -80,6 +80,12 @@ class Pane {
   public clientAxis: "clientX" | "clientY" = "clientX";
 
   constructor(el: HTMLElement, options: PaneOptions) {
+    const paneDirection = GridResizeUtils.getAttribute(
+      options,
+      "paneDirection",
+      "row"
+    ) as Direction;
+
     this.el = el;
     this.id = GridResizeUtils.getAttribute(options, "paneId", "");
     this.type = GridResizeUtils.getAttribute(
@@ -105,7 +111,7 @@ class Pane {
     this.direction = GridResizeUtils.getAttribute(
       options,
       "paneResizeDirection",
-      options.direction
+      paneDirection
     ) as Direction;
     this.collapseAt = Number(
       GridResizeUtils.getAttribute(options, "paneCollapseAt", "0")
@@ -120,18 +126,33 @@ class Pane {
     const rect = this.el.getBoundingClientRect();
     const { width, height, top, bottom, left, right } = rect;
 
+    // For resize calculations, use the dimension that matters for the children
+    // If this pane arranges children in :row direction, available space is HEIGHT
+    // If this pane arranges children in :column direction, available space is WIDTH
+
     if (this.direction === "row") {
       this.start = top;
       this.end = bottom;
       this.size = this.calculateSize(height, this.sizeUnit);
-      this.sizePx = height;
+      this.sizePx = height; // ✅ Correct for row direction
       this.clientAxis = "clientY";
     } else {
       this.start = left;
       this.end = right;
       this.size = this.calculateSize(width, this.sizeUnit);
-      this.sizePx = width;
+      this.sizePx = width; // ✅ Correct for column direction
       this.clientAxis = "clientX";
+    }
+  }
+
+  public getContainerSizeForChildren(): number {
+    const rect = this.el.getBoundingClientRect();
+
+    // Return the dimension that children are arranged along
+    if (this.direction === "column") {
+      return rect.height; // Children arranged vertically, so height is the constraint
+    } else {
+      return rect.width; // Children arranged horizontally, so width is the constraint
     }
   }
 
@@ -262,18 +283,8 @@ class Divider {
 
     const isCurrentlyCollapsed = currentSize <= this.target.collapseAt;
 
-    console.log(
-      "checking collapse condition",
-      newSize,
-      this.target.collapseTo,
-      this.target.collapseAt,
-      currentSize,
-      isCurrentlyCollapsed
-    );
-
     // If currently collapsed and trying to expand, snap to collapseAt
     if (isCurrentlyCollapsed && newSize > this.target.collapseTo) {
-      console.log("expanding past collapse threshold");
       return this.target.sizeDefault;
     }
 
@@ -371,11 +382,11 @@ class Divider {
           .reduce((sum, pane) => sum + pane.sizePx, 0);
 
         const pxPanes = this.siblings
-          .filter((pane) => pane.sizeUnit === "px")
+          .filter((pane) => pane.sizeUnit === "px" && pane.type !== "divider")
           .reduce((sum, pane) => sum + pane.sizePx, 0);
 
         const flexPx = GridResizeUtils.getFlexSpacePx(
-          this.container.sizePx,
+          this.container.getContainerSizeForChildren(),
           pxPanes,
           gapsPx
         );
@@ -390,12 +401,12 @@ class Divider {
 
         if (this.dividerPosition === "start") {
           // Divider is at start of target: dragging right/down grows target, shrinks adjacent
-          targetDelta = deltaFr;
-          adjacentDelta = -deltaFr;
-        } else {
-          // Divider is at end of target: dragging right/down shrinks target, grows adjacent
           targetDelta = -deltaFr;
           adjacentDelta = deltaFr;
+        } else {
+          // Divider is at end of target: dragging right/down shrinks target, grows adjacent
+          targetDelta = deltaFr;
+          adjacentDelta = -deltaFr;
         }
 
         // Apply constraints

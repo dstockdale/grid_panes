@@ -109,7 +109,7 @@ defmodule GridPanesWeb.TestLive do
           id: "content-middle",
           type: :pane,
           size_unit: :fr,
-          size_default: Decimal.new("2"),
+          size_default: Decimal.new("1"),
           parent_id: "content",
           children: [],
           # Second column
