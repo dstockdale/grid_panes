@@ -31,7 +31,11 @@ defmodule GridPanes.Grids.Grid do
         changeset
 
       panes ->
-        ids = Enum.map(panes, & &1.id)
+        ids =
+          Enum.map(panes, fn
+            %Ecto.Changeset{} = cs -> Ecto.Changeset.get_field(cs, :id)
+            pane -> pane.id
+          end)
 
         if length(ids) != length(Enum.uniq(ids)) do
           add_error(changeset, :panes, "pane IDs must be unique")
@@ -47,11 +51,18 @@ defmodule GridPanes.Grids.Grid do
         changeset
 
       panes ->
-        panes_by_id = Map.new(panes, &{&1.id, &1})
+        # Convert changesets to data we can work with
+        pane_data =
+          Enum.map(panes, fn
+            %Ecto.Changeset{} = cs -> Ecto.Changeset.apply_changes(cs)
+            pane -> pane
+          end)
+
+        panes_by_id = Map.new(pane_data, &{&1.id, &1})
 
         # Check that all parent_ids reference valid panes
         invalid_parents =
-          Enum.filter(panes, fn pane ->
+          Enum.filter(pane_data, fn pane ->
             pane.parent_id && !Map.has_key?(panes_by_id, pane.parent_id)
           end)
 
@@ -70,8 +81,15 @@ defmodule GridPanes.Grids.Grid do
         changeset
 
       panes ->
+        # Convert changesets to data we can work with
+        pane_data =
+          Enum.map(panes, fn
+            %Ecto.Changeset{} = cs -> Ecto.Changeset.apply_changes(cs)
+            pane -> pane
+          end)
+
         # Group panes by parent to check sibling relationships
-        siblings_by_parent = Enum.group_by(panes, & &1.parent_id)
+        siblings_by_parent = Enum.group_by(pane_data, & &1.parent_id)
 
         Enum.reduce(siblings_by_parent, changeset, fn {parent_id, siblings}, acc ->
           validate_sibling_group(acc, siblings, parent_id)
@@ -99,7 +117,7 @@ defmodule GridPanes.Grids.Grid do
     # Check if any siblings use fr units
     fr_siblings =
       Enum.filter(siblings, fn pane ->
-        pane.size_unit == :fr && pane.size_value
+        pane.size_unit == :fr && pane.size_default
       end)
 
     if length(fr_siblings) > 0 do

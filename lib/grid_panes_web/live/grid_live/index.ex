@@ -11,31 +11,18 @@ defmodule GridPanesWeb.GridLive.Index do
     ~H"""
     <Layouts.whole_screen flash={@flash}>
       <.resizable_grid grid={@layout_grid} id="resizable-grid">
-        <:pane id="sidebar" class="bg-yellow-500 overflow-hidden"></:pane>
+        <:pane id="sidebar" class="bg-gray-50 overflow-hidden"></:pane>
 
-        <:pane id="sidebar_top" class="bg-green-500 overflow-hidden">
-          <div class="p-4 bg-gray-100">
-            <h2 class="text-lg font-bold mb-4">Top</h2>
-          </div>
+        <:pane id="sidebar_top" class="overflow-hidden">
+          Top
         </:pane>
 
-        <:pane id="sidebar_middle" class="bg-green-500 overflow-hidden">
-          <div class="p-4 bg-gray-100">
-            <h2 class="text-lg font-bold mb-4">Navigation</h2>
-            <nav>
-              <ul class="space-y-2">
-                <li><a href="#" class="block py-2 px-3 rounded hover:bg-gray-200">Dashboard</a></li>
-                <li><a href="#" class="block py-2 px-3 rounded hover:bg-gray-200">Users</a></li>
-                <li><a href="#" class="block py-2 px-3 rounded hover:bg-gray-200">Settings</a></li>
-              </ul>
-            </nav>
-          </div>
+        <:pane id="sidebar_middle" class="overflow-hidden">
+          Sidebar Middle
         </:pane>
 
-        <:pane id="sidebar_bottom" class="bg-green-500">
-          <div class="p-4 bg-gray-100">
-            <h2 class="text-lg font-bold mb-4">Bottom</h2>
-          </div>
+        <:pane id="sidebar_bottom" class="overflow-hidden">
+          Bottom
         </:pane>
 
         <:pane id="main" class="overflow-hidden"></:pane>
@@ -196,11 +183,19 @@ defmodule GridPanesWeb.GridLive.Index do
       ]
     }
 
+    # Create an empty grid for the form
+    empty_grid = %Grid{
+      name: "",
+      description: "",
+      panes: []
+    }
+
     {:ok,
      socket
-     |> assign(:grid, nil)
+     |> assign(:grid, empty_grid)
      |> assign(:layout_grid, grid)
-     |> assign(:page_title, "Listing Grids")
+     |> assign(:live_action, :new)
+     |> assign(:page_title, "Grid Designer")
      |> stream(:grids, Grids.list_grids())}
   end
 
@@ -210,5 +205,17 @@ defmodule GridPanesWeb.GridLive.Index do
     {:ok, _} = Grids.delete_grid(grid)
 
     {:noreply, stream_delete(socket, :grids, grid)}
+  end
+
+  @impl true
+  def handle_info({GridPanesWeb.GridLive.GridsFormComponent, {:saved, grid}}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Grid \"#{grid.name}\" saved successfully!")
+     |> stream_insert(:grids, grid)}
+  end
+
+  def handle_info({GridPanesWeb.GridLive.GridsFormComponent, {:cancelled}}, socket) do
+    {:noreply, put_flash(socket, :info, "Grid editing cancelled")}
   end
 end

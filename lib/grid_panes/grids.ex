@@ -101,7 +101,7 @@ defmodule GridPanes.Grids do
             cond do
               pane.id == pane_id ->
                 constrained_value = apply_size_constraints(new_value, pane)
-                %{pane | size_value: constrained_value, size_unit: new_unit}
+                %{pane | size: constrained_value, size_unit: new_unit}
 
               needs_fr_redistribution?(pane, pane_id, grid.panes) ->
                 redistribute_fr_unit(pane, new_value)
@@ -186,13 +186,13 @@ defmodule GridPanes.Grids do
 
   # Simple fr redistribution - distribute the change among fr siblings
   defp redistribute_fr_unit(pane, delta_fr) do
-    current_fr = pane.size_value || Decimal.new("1")
+    current_fr = pane.size || Decimal.new("1")
     # For simplicity, just reduce each sibling by a small amount
     # In a more sophisticated version, you'd calculate based on number of siblings
     # Distribute among ~4 siblings max
     reduction = Decimal.div(delta_fr, Decimal.new("4"))
     new_fr = Decimal.max(Decimal.new("0.1"), Decimal.sub(current_fr, reduction))
-    %{pane | size_value: new_fr}
+    %{pane | size: new_fr}
   end
 
   @doc """
