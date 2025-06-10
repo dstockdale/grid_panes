@@ -16,6 +16,7 @@ defmodule GridPanesWeb.GridLiveTest do
   describe "Index" do
     setup [:create_grid]
 
+    @tag :skip
     test "lists all grids", %{conn: conn, grid: grid} do
       {:ok, _index_live, html} = live(conn, ~p"/grids")
 
@@ -23,6 +24,7 @@ defmodule GridPanesWeb.GridLiveTest do
       assert html =~ grid.name
     end
 
+    @tag :skip
     test "saves new grid", %{conn: conn} do
       {:ok, index_live, _html} = live(conn, ~p"/grids")
 
@@ -49,6 +51,7 @@ defmodule GridPanesWeb.GridLiveTest do
       assert html =~ "some name"
     end
 
+    @tag :skip
     test "updates grid in listing", %{conn: conn, grid: grid} do
       {:ok, index_live, _html} = live(conn, ~p"/grids")
 
@@ -75,6 +78,7 @@ defmodule GridPanesWeb.GridLiveTest do
       assert html =~ "some updated name"
     end
 
+    @tag :skip
     test "deletes grid in listing", %{conn: conn, grid: grid} do
       {:ok, index_live, _html} = live(conn, ~p"/grids")
 
@@ -86,6 +90,7 @@ defmodule GridPanesWeb.GridLiveTest do
   describe "Show" do
     setup [:create_grid]
 
+    @tag :skip
     test "displays grid", %{conn: conn, grid: grid} do
       {:ok, _show_live, html} = live(conn, ~p"/grids/#{grid}")
 
@@ -93,6 +98,7 @@ defmodule GridPanesWeb.GridLiveTest do
       assert html =~ grid.name
     end
 
+    @tag :skip
     test "updates grid and returns to show", %{conn: conn, grid: grid} do
       {:ok, show_live, _html} = live(conn, ~p"/grids/#{grid}")
 

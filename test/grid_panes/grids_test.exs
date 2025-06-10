@@ -21,12 +21,34 @@ defmodule GridPanes.GridsTest do
     end
 
     test "create_grid/1 with valid data creates a grid" do
-      valid_attrs = %{name: "some name", description: "some description", panes: %{}}
+      valid_panes = [
+        %{
+          id: "test-root",
+          type: :group,
+          direction: :row,
+          size_default: Decimal.new("1"),
+          size_unit: :fr,
+          children: ["test-pane"],
+          parent_id: nil,
+          order: 0
+        },
+        %{
+          id: "test-pane",
+          type: :pane,
+          size_default: Decimal.new("1"),
+          size_unit: :fr,
+          parent_id: "test-root",
+          children: [],
+          order: 0
+        }
+      ]
+
+      valid_attrs = %{name: "some name", description: "some description", panes: valid_panes}
 
       assert {:ok, %Grid{} = grid} = Grids.create_grid(valid_attrs)
       assert grid.name == "some name"
       assert grid.description == "some description"
-      assert grid.panes == %{}
+      assert length(grid.panes) == 2
     end
 
     test "create_grid/1 with invalid data returns error changeset" do
@@ -35,12 +57,12 @@ defmodule GridPanes.GridsTest do
 
     test "update_grid/2 with valid data updates the grid" do
       grid = grid_fixture()
-      update_attrs = %{name: "some updated name", description: "some updated description", panes: %{}}
+      update_attrs = %{name: "some updated name", description: "some updated description"}
 
-      assert {:ok, %Grid{} = grid} = Grids.update_grid(grid, update_attrs)
-      assert grid.name == "some updated name"
-      assert grid.description == "some updated description"
-      assert grid.panes == %{}
+      assert {:ok, %Grid{} = updated_grid} = Grids.update_grid(grid, update_attrs)
+      assert updated_grid.name == "some updated name"
+      assert updated_grid.description == "some updated description"
+      assert length(updated_grid.panes) == 3  # Should keep the existing panes
     end
 
     test "update_grid/2 with invalid data returns error changeset" do

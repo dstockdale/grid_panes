@@ -1,7 +1,6 @@
 defmodule GridPanesWeb.TestLive do
   use GridPanesWeb, :live_view
 
-  alias GridPanes.Grids
   alias GridPanes.Grids.{Grid, Pane}
 
   import GridPanesWeb.Components.ResizablePanes
@@ -209,11 +208,5 @@ defmodule GridPanesWeb.TestLive do
       </.resizable_grid>
     </Layouts.whole_screen>
     """
-  end
-
-  @impl true
-  def handle_event("pane_resizing", %{"new_size" => new_size, "pane_id" => pane_id}, socket) do
-    updated_grid = Grids.update_pane_size(socket.assigns.grid, pane_id, new_size)
-    {:noreply, assign(socket, :grid, updated_grid)}
   end
 end
