@@ -1,0 +1,63 @@
+# Kamal 2 deployment configuration for GridPanes
+
+service: gridpanes
+image: gridpanes
+
+servers:
+  web:
+    hosts:
+      - YOUR_SERVER_IP # Replace with your Linode server IP
+    labels:
+      traefik.http.routers.gridpanes.rule: Host(`your-domain.com`) # Replace with your domain
+      traefik.http.routers.gridpanes.tls.certresolver: letsencrypt
+
+registry:
+  server: registry.hub.docker.com
+  username: your-dockerhub-username # Replace with your Docker Hub username
+
+env:
+  clear:
+    PORT: 4000
+    MIX_ENV: prod
+  secret:
+    - SECRET_KEY_BASE
+    - DATABASE_URL
+    - LIVE_VIEW_SIGNING_SALT
+
+accessories:
+  postgres:
+    image: postgres:15
+    host: YOUR_SERVER_IP # Same server as app
+    port: 5432
+    env:
+      clear:
+        POSTGRES_DB: gridpanes_prod
+        POSTGRES_USER: gridpanes
+      secret:
+        - POSTGRES_PASSWORD
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    host: YOUR_SERVER_IP # Same server as app
+    port: 6379
+    volumes:
+      - /var/lib/redis/data:/data
+
+traefik:
+  options:
+    publish:
+      - "443:443"
+      - "80:80"
+    volume:
+      - "/letsencrypt/acme.json:/letsencrypt/acme.json"
+  args:
+    entrypoints.web.address: ":80"
+    entrypoints.websecure.address: ":443"
+    certificatesresolvers.letsencrypt.acme.tlschallenge: true
+    certificatesresolvers.letsencrypt.acme.email: your-email@example.com # Replace with your email
+    certificatesresolvers.letsencrypt.acme.storage: /letsencrypt/acme.json
+
+builder:
+  multiarch: false

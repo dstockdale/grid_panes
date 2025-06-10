@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+# GridPanes Kamal Deployment Script
+set -e
+
+echo "🚀 GridPanes Kamal Deployment"
+echo "=============================="
+
+# Check if .env exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found!"
+    echo "📋 Please copy .env.example to .env and fill in your values:"
+    echo "   cp .env.example .env"
+    echo "   Edit .env with your actual values"
+    exit 1
+fi
+
+# Source environment variables
+source .env
+
+# Check required variables
+required_vars=("SECRET_KEY_BASE" "LIVE_VIEW_SIGNING_SALT" "DATABASE_URL" "POSTGRES_PASSWORD" "SERVER_IP")
+for var in "${required_vars[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "❌ Required environment variable $var is not set in .env"
+        exit 1
+    fi
+done
+
+echo "✅ Environment variables validated"
+
+# Update deploy.yml with actual values
+echo "📝 Updating deploy.yml with your configuration..."
+sed -i.bak \
+    -e "s/YOUR_SERVER_IP/$SERVER_IP/g" \
+    -e "s/your-domain.com/$DOMAIN/g" \
+    -e "s/your-email@example.com/$EMAIL/g" \
+    -e "s/your-dockerhub-username/$DOCKER_USERNAME/g" \
+    config/deploy.yml
+
+echo "🏗️  Building and deploying with Kamal..."
+
+# Deploy with Kamal
+kamal setup
+
+echo "✅ Deployment complete!"
+echo "🌐 Your app should be available at: https://$DOMAIN"
+echo "📊 Check status with: kamal app logs"

@@ -36,3 +36,11 @@ npm-debug.log
 /assets/node_modules/
 
 /.claude
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Kamal deployment files
+.kamal/

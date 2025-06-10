@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+DEPLOYMENT.md
+
+# Environment files
+.env*
+
+# Build artifacts
+/_build
+/deps
+/cover
+/doc
+/.fetch
+erl_crash.dump
+*.ez
+grid_panes-*.tar
+
+# Assets
+/priv/static/assets/
+/priv/static/cache_manifest.json
+/assets/node_modules/
+npm-debug.log
+
+# Development files
+/.claude
+/.kamal
+/tmp
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
